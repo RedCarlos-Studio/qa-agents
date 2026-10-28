@@ -1,5 +1,10 @@
 # QA agents: how to use
 
+- **Codex desktop app and CLI:** [installation, prerequisites and examples](docs/codex.md). Native definitions are in `.codex/agents/`.
+- **Claude Code:** follow the original instructions below; `.claude/agents/` is preserved.
+
+## Claude Code
+
 ## Install
 
 1. Copy `qa-web.md`, `qa-mobile.md`, `qa-api.md`, `qa-lead.md` into `.claude/agents/` in the project (create the folder if missing, then restart Claude Code once).
