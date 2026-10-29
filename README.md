@@ -90,3 +90,7 @@ Optional switches, each a one-line change:
 - Review new tests before merging them into CI. Specialists write them from what they observed, not from the spec.
 - Reports are inputs for developers, not fixes. Hand bugs to the dev or to a separate fixing session.
 - If a run drifts (too many rounds, low-value cases), lower the round limit in `qa-lead.md` or tighten the scope.
+
+## Server runner
+
+See [the operator guide](docs/SERVER.md) for Docker setup, checkpoint runs and reports.

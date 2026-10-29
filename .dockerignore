@@ -1,0 +1,9 @@
+**
+!agents/
+!agents/qa-lead.md
+!agents/qa-runner.md
+!agents/qa-api.md
+!agents/qa-web-server.md
+!docker/
+!docker/Dockerfile
+!docker/entrypoint.sh
