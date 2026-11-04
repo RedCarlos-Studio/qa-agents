@@ -19,7 +19,7 @@ Five Claude Code subagents that work as a small QA team: a lead on Opus that pla
 
 ## How a run works
 
-1. Intake: the lead reads the diff and spec, creates `qa-reports/<date>/board.md`.
+1. Intake, in one of two modes. Change mode: you give a PR, branch or base, the lead reads the diff and spec. Feature mode: you name functionality ("check the checkout flow on staging"), the lead finds it in the code itself (routes, components, screens, tests, flags), builds a feature map with entry points per layer, derives expected behavior from docs, specs and code, and lists what it could not settle as open questions. Either way it creates `qa-reports/<date>/board.md`.
 2. Research and regression, in parallel: the lead asks each involved specialist what should be tested (they return proposed cases with priority, preconditions and dependencies, nothing executed yet) and has qa-runner execute the existing suites.
 3. Review: failing existing tests become P1 cases at the top of the backlog; proposed cases already covered by a passing test are dropped. The lead merges duplicates, orders by dependency (API before clients), drops cases that are already blocked, caps the scope, writes the backlog to the board.
 4. Checkpoint: the lead stops and gives you a one-screen brief: scope, environment status, backlog size by layer and priority, estimate (rounds, wall time, cost), biggest risks, and anything only you can unblock. Nothing runs until you reply. Reply `go`, `go without MOB`, or change the scope. To skip the pause, start the run with "no checkpoint".
@@ -35,6 +35,11 @@ Several layers or a release (two steps: the lead returns a plan brief, you appro
     use qa-lead to QA branch feature/payments against main
     ... lead returns the checkpoint brief ...
     go
+
+A named feature, no diff (feature mode; the brief shows the entry points the lead found so you can correct the map before anything runs):
+
+    use qa-lead to check the checkout flow on https://staging.client.example
+    use qa-lead to verify invoicing and PDF export on UAT
 
 Same, without the pause:
 
