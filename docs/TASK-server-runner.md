@@ -2,7 +2,7 @@
 
 Part of: qa-agents (RedCarlos-Studio/qa-agents). Depends on PR #4 (v2 agents) being merged.
 
-Delivery status: Stages 1 to 4 and the scripts in Stage 3 (including `--feature`) are delivered on branch `qa-full-run`; Stage 0 server checks and the Stage 5 real run are tracked in the PR. Full-portal mode is specified in [TASK-full-portal-run.md](TASK-full-portal-run.md).
+Delivery status: Stages 1 to 4 and the scripts in Stage 3 (including `--feature`) are delivered on branch `server-runner` (PR #5); Stage 0 server checks and the Stage 5 real run are tracked in that PR. Full-portal mode is specified in [TASK-full-portal-run.md](TASK-full-portal-run.md).
 Relative size: medium. Mostly infrastructure and scripting; agent changes are small.
 
 ## 1. Goal
@@ -22,7 +22,7 @@ Not in scope for this task: scheduled or event-triggered runs, mobile (qa-mobile
 
 ## 3. Stage 0: pre-flight
 
-- [x] PR #4 contained in the consolidation branch `qa-full-run` (merge into `main` with that PR).
+- [x] PR #4 contained in `server-runner` (PR #5); it lands in `main` with that PR.
 - [ ] Server: Docker and Docker Compose installed, outbound HTTPS to `api.anthropic.com`, network route to at least one client staging (VPN or IP allowlist confirmed with the client).
 - [ ] Free resources on the server: 2 vCPU and 4 GB RAM per concurrent run (8 GB if two runs may overlap), 20 GB disk for images and caches. Confirm with `free -h`, `nproc`, `df -h`.
 - [ ] `claude setup-token` run on John Michael's machine; token stored on the server in `/srv/qa/secrets/claude.env` with mode 0600. Note the expiry in the team calendar; the token is valid for one year and runs fail with 401 after that.

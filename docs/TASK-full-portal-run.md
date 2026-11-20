@@ -4,6 +4,8 @@ Repository: RedCarlos-Studio/qa-agents
 Relative size: medium to large. Mostly prompt and Bash work; one integration pass on the server.
 Executor: Claude Code, working in a local clone with push access to RedCarlos-Studio/qa-agents and read access to the fork RuslanPostnikovRC/qa-agents.
 
+Operator decision (Stage 0, open question 1): the consolidation is pushed into `server-runner` (PR #5) instead of a new `qa-full-run` PR. Read `qa-full-run` below as `server-runner`; #3 and #4 are closed with a link to #5 after it merges.
+
 ## 1. Goal
 
 One branch, one PR, that contains everything from the three open PRs plus the missing pieces, so an operator can run on the QA server:
