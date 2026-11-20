@@ -246,6 +246,12 @@ phases running at once, not a second run starting while one is paused;
 starting another run in between is allowed but uses the same memory
 budget, so finish or clean up the paused run first on a small host.
 
+Accounts added mid-run: if the run stops because it needs an account
+(for example a test user whose password is set from an email), add it
+to /srv/qa/clients/<client>/env.test and reply "continue". qa-go
+copies the client env.test into the run's clone on every resume when
+it has changed, and prints "env.test refreshed".
+
 ## Coverage ledger: what is already tested
 
 Each client keeps one ledger of tested functionality across runs:
