@@ -29,6 +29,7 @@ exec 9> "$QA_ROOT/runner.lock"
 if (( EUID == 0 )); then chown qa:qa "$QA_ROOT/runner.lock"; fi
 flock -n 9 || qa_die 'Another QA run is active on this server'
 
+printf 'Mode: %s\n' "${QA_MODE:-change}"
 SESSION="$(cat "$RUN_DIR/session")"
 python3 - "$SESSION" <<'PY'
 import sys, uuid
