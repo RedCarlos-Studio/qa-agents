@@ -22,6 +22,8 @@ First decide which mode you are in and write it on the board. A prompt that name
 - Change mode, base drift: `git fetch origin <base>`, then `git log HEAD..origin/<base>`. If the base has moved, list the base commits that touch files the branch changed or modules its new files import. Have those paths tested on a local merge in a separate `git worktree` (name both shas), or list them as untested on the board and in the summary.
 - Feature and full mode: the sha is the cloned commit (`git rev-parse --short HEAD`). Also record the stage's build or deploy id if the stage exposes one (a version endpoint, a footer, a header); otherwise write "stage build unknown". If the stage exposes a commit that differs from the clone, say so at the checkpoint: the code map may not match what runs.
 
+**2. Coverage ledger.** If `qa-reports/coverage-ledger.md` exists, read it before planning (see Coverage ledger). It lists what earlier runs on this client already tested, on which commit, and with what result.
+
 **Change mode.** You were given a PR, a branch, or a base to compare against.
 - Read `git diff <base>...HEAD --stat`, then the diff itself for the touched files.
 - Map touched areas by path: frontend (apps/web, src/components, pages), mobile (apps/mobile, ios/, android/, .maestro/), backend (apps/api, src/modules, routes, migrations, openapi.yaml).
@@ -137,6 +139,8 @@ Write qa-reports/<date>/summary.md. Its first line is exactly `GO`, `NO-GO` or `
 
 Rank severity on the qa-rules §11 scale (blocker / major / minor; wrong stored data is a blocker, a wrong display of correct data is major). Re-rank only for impact across layers: a backend bug that breaks a client flow is at least major even if qa-api called it minor.
 
+Before the closing brief, write the updated coverage ledger (see Coverage ledger).
+
 End your turn with a short plain-text brief for the operator, same style as the checkpoint: verdict in one line, blocker count, where the summary is, and what the operator should do next.
 
 Each bug line: [layer] title, severity, task id, link to the detailed report, one-line repro.
@@ -155,7 +159,7 @@ Full mode is feature mode applied to every module of the web portal on the stage
    limits: same origin, GET only, depth 3, max 200 pages, robots.txt respected unless .env.test sets QA_IGNORE_ROBOTS=1
    ```
    and qa-runner for the full web and api regression suites. qa-web returns the CRAWL / SECTIONS / ERRORS block and writes `qa-reports/<date>/evidence/<run>-crawl.md`. Record on the board: pages found live but not in the code map, and routes in code not reachable live. Keep the qa-web agent ID for later modules.
-3. Group into modules (for example auth and account, catalog and search, cart and checkout, orders and history, admin, content pages, settings). Give each a 2 to 5 letter id (AUTH, CHK, ORD). For each module record: entry points per layer (URLs, endpoints, jobs), roles that reach it, existing tests, risk (money, data loss, auth, legal, high traffic, or low), size S/M/L, and its case budget.
+3. Group into modules (for example auth and account, catalog and search, cart and checkout, orders and history, admin, content pages, settings). Give each a 2 to 5 letter id (AUTH, CHK, ORD). For each module record: entry points per layer (URLs, endpoints, jobs), the code paths it covers (directories or globs, needed for the ledger), roles that reach it, existing tests, risk (money, data loss, auth, legal, high traffic, or low), size S/M/L, its case budget, and its ledger state (see Coverage ledger: new, covered, covered but changed, partial, failed). Reuse the module ids and paths of the ledger when a module matches one there, so rows stay comparable across runs.
 
 **Checkpoint (full mode).** The plan phase stops here, before any per-module research. Same rules as Phase 2b (end the turn, write it to the board, skip the pause on "no checkpoint"). Format, plain text, one screen:
 
@@ -166,25 +170,26 @@ Commit: <sha>, stage build <id or unknown>.
 Map: N modules from code, crawl P pages as roles <list>; Q live pages not in code, K code routes not reachable (listed on the board).
 Environment: web ok / api ok. Regression: web 42 passed / 2 failed, api 18 passed.
 
-Module | risk  | size | layers  | budget | included
-AUTH   | auth  | M    | web,api | 8      | yes
-CHK    | money | L    | web,api | 12     | yes
-CMS    | low   | S    | web     | 4      | P1 flow only
-ADMIN  | data  | L    | web,api | 12     | not in this run
+Module | risk  | size | layers  | budget | ledger                      | included
+AUTH   | auth  | M    | web,api | 8      | covered a1b2c3d, unchanged  | skip (covered)
+CHK    | money | L    | web,api | 12     | covered a1b2c3d, changed    | yes (retest)
+ORD    | data  | M    | web,api | 8      | partial: 3 not run          | yes (rest only)
+CMS    | low   | S    | web     | 4      | new                         | P1 flow only
+ADMIN  | data  | L    | web,api | 12     | new                         | not in this run
 
 Global budget: C cases of max <N>, up to <R> rounds per specialist per module.
 Estimate: about X to Y minutes wall time; roughly Z specialist task runs plus lead review (Sonnet specialists, Opus lead).
 Never-touch list: <from the project rules, or "none found: please send one before write cases in CHK, ORD">.
 Needs from you: roles without accounts, blocked areas, or "nothing".
 
-Reply "go" (selection above), "go modules auth,checkout", "go all", "drop admin", or "budget 60".
+Reply "go" (selection above), "go modules auth,checkout", "go all", "retest auth", "drop admin", or "budget 60".
 ```
 
-Default selection: every module with risk money, auth or data loss, plus the P1 flow (main path only) of every other module; everything else is "not in this run". If the default exceeds the global ceiling, cut the lowest-risk modules first and say so. Failing regression tests become P1 cases of their module.
+Default selection, after the ledger is applied: modules marked `covered` whose code has not changed since the covered commit are skipped ("skip (covered)"); `failed` modules get their failed and blocked cases again; `partial` modules get only the cases the ledger lists as not run; `covered but changed` modules are retested. From what remains: every module with risk money, auth or data loss, plus the P1 flow (main path only) of every other module; everything else is "not in this run". If the default exceeds the global ceiling, cut the lowest-risk modules first and say so. Failing regression tests become P1 cases of their module.
 
 Never-touch list: qa-rules §6 forbids touching anything on it. If the project rules and the client notes have no never-touch list and any included module with risk money or data loss will need write cases, ask for one in the checkpoint. Until the operator answers, those modules run read-only cases only; mark their write cases "not run (no never-touch list)".
 
-Operator replies: `go` runs the default selection; `go modules auth,checkout` runs only the named modules (match by id or name); `go all` includes every module within the ceiling; `drop <module>` removes one and keeps the rest; `budget <n>` sets the global case ceiling. Replies combine. Apply the reply to the module table on the board before starting.
+Operator replies: `go` runs the default selection; `go modules auth,checkout` runs only the named modules (match by id or name, covered or not); `go all` includes every module within the ceiling, covered ones too; `retest <module>` puts a covered module back in; `drop <module>` removes one and keeps the rest; `budget <n>` sets the global case ceiling. Replies combine. Apply the reply to the module table on the board before starting.
 
 **Phase 1F to 3F. Module by module.** After go, process included modules in risk order (money, data loss, auth, legal, high traffic, then the rest). For each module:
 1. Research: Phase 1 for that module only, with `budget: <n>` (its case budget) in each digest and the module's entry points instead of a feature map. Research of several S modules may be batched into one specialist call; give the budget per module. Resume the specialists you already have rather than spawning new ones.
@@ -194,7 +199,7 @@ Operator replies: `go` runs the default selection; `go modules auth,checkout` ru
 
 Shared blockers (stage down, sign-in broken for a role, test account rejected, every request failing) stop the run: write them on the board and end your turn with a brief to the operator. Do not retry them module by module. A blocker local to one module (a feature flag off, one page erroring) blocks that module only; move on.
 
-**Phase 4F. Verdict.** One summary.md, same first-line rule and sections as Phase 4, plus:
+**Phase 4F. Verdict.** One summary.md, same first-line rule and sections as Phase 4, then the updated coverage ledger, plus in the summary:
 - a per-module table: module, risk, cases passed / failed / blocked / not run, top issue;
 - blockers and majors across modules, deduplicated (one root cause seen in two modules is one bug);
 - a "Not covered" list: modules not selected, modules stopped by blockers, pages found live but not mapped and code routes not reachable, cases "not run (budget)", write cases not run for lack of a never-touch list.
@@ -217,12 +222,48 @@ These replace the change and feature mode limits (5 to 12 cases per layer, 10 st
 - One section per module: entry points, acceptance criteria with marks, its own task table (ids like `CHK-WEB-3`, `AUTH-API-1`) and its own log.
 - A short global log for events that cross modules (shared blockers, budget changes, operator replies).
 
+## Coverage ledger
+
+The ledger is the per-client memory of what has been tested, so the next run can skip what is already done and move on to the next blocks. The runner copies the previous ledger to `qa-reports/coverage-ledger.md` before the run (absent on a client's first run) and saves your new one after a recognized verdict. Read the old one; never edit it in place.
+
+At the end of every run that reaches a verdict (Phase 4 or 4F), write the complete updated ledger to `qa-reports/<date>/coverage-ledger.md`: every row of the old ledger, with the rows you tested replaced and new rows added. Rows you did not touch are copied unchanged. Format, exactly:
+
+```
+# Coverage ledger: <client or repo name>
+
+Last run: <run id>, mode <change | feature | full>, commit <sha>, stage <url>, stage build <id or unknown>, verdict <GO | NO-GO | GO WITH KNOWN ISSUES>
+
+| Module | Name | Paths | Status | Commit | Run | Passed | Failed | Blocked | Not run | Open issues | Next run |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| AUTH | Sign-in, roles, onboarding | packages/website/src/pages/auth, packages/cms/src/api/user* | covered | a1b2c3d | 20261120-1830-a1b2c3d | 8 | 0 | 0 | 0 | none | skip unless paths change |
+| ORD | Orders and history | ... | partial | a1b2c3d | 20261120-1830-a1b2c3d | 4 | 1 | 0 | 3 | ORD-API-2 (major) | ORD-WEB-4, ORD-WEB-5, ORD-API-6; retest ORD-API-2 after fix |
+
+## Cases
+
+### <MODULE>
+- <task id> | <one-line case> | passed | failed (<severity>) | blocked (<reason>) | not run (<reason>) | <evidence path>
+```
+
+Status rules:
+- `covered`: every case in the module's backlog was executed and passed or failed with an accepted severity of minor, nothing is blocked or not run. Only this status lets the next run skip the module.
+- `failed`: executed, with at least one open blocker or major. The next run retests those cases.
+- `partial`: some cases blocked, not run, or cut by budget. The next run runs only those, listed in "Next run".
+- `not covered`: mapped but not selected or stopped before any case ran.
+- A module tested in feature or change mode keeps its row but can be `covered` only if its whole module backlog was in scope; otherwise it is `partial` with what was done.
+
+Using the ledger at the next intake:
+- A `covered` module is skipped only if its code did not change: run `git log --oneline <ledger commit>..HEAD -- <paths>`. Any commit there makes it `covered but changed`: retest it, starting with the cases the changed files touch. If the ledger commit is not in this history (rebased branch), compare by date: `git log --since=<ledger run date> -- <paths>`, and say so on the board.
+- A ledger row whose stage URL differs from this run's stage counts as `new`.
+- Never mark something covered that a specialist did not execute in this or an earlier run. The case list in the ledger is the proof; a module without case lines is not covered.
+
 ## Resume
 
 The board is the state. When you are started again with "continue" (or any operator reply after an interruption), read the board first, never start over. Pick up from it: the current mode and module, tasks marked in-progress (check for their evidence file; if there is no result, dispatch them again), remaining budget. Try the agent IDs on the board with SendMessage; if one does not respond, spawn a fresh specialist and give it the module digest and the task lines from the board. A result that names another commit than the board is stale: run it again.
 
 ## Rules
 
+- Headless runs (the server runner starts you with `claude -p`): the process exits when your turn ends and kills every subagent still running. Spawn every subagent in the foreground (`run_in_background: false`) and wait for its result in the same turn. Never end a turn with "waiting for agents to report back"; end it only at the checkpoint brief, at a stop that needs the operator, or with the verdict.
+- Memory on the server is tight (about 1 GB per run, Chromium included). Run at most one browser-using specialist at a time; do not run qa-web and qa-runner browser suites in parallel.
 - Write only to qa-reports/.
 - Specialists get one task per message, or one validated conditional chain of up to three. No open lists, no "and also check".
 - Evidence lives in files under qa-reports/<date>/evidence/; you read a specialist's structured block, not raw logs. Open an evidence file only when deciding severity or a dependency.

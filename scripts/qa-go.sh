@@ -30,6 +30,18 @@ if (( EUID == 0 )); then chown qa:qa "$QA_ROOT/runner.lock"; fi
 flock -n 9 || qa_die 'Another QA run is active on this server'
 
 printf 'Mode: %s\n' "${QA_MODE:-change}"
+
+# Pick up accounts the operator added to the client env.test while the run was paused.
+ENV_TEST="$QA_ROOT/clients/$CLIENT/env.test"
+[[ -f "$ENV_TEST" && ! -L "$ENV_TEST" ]] || qa_die 'Client env.test missing or is a symlink'
+[[ "$(stat -c %a "$ENV_TEST")" == 600 ]] || qa_die 'Client env.test must have mode 0600'
+[[ ! -L "$RUN_DIR/repo/.env.test" ]] || qa_die 'Refusing a symlink at repo/.env.test'
+if ! cmp -s "$ENV_TEST" "$RUN_DIR/repo/.env.test"; then
+  install -m 600 "$ENV_TEST" "$RUN_DIR/repo/.env.test"
+  if (( EUID == 0 )); then chown qa:qa "$RUN_DIR/repo/.env.test"; fi
+  printf 'env.test refreshed from %s\n' "$ENV_TEST"
+fi
+
 SESSION="$(cat "$RUN_DIR/session")"
 python3 - "$SESSION" <<'PY'
 import sys, uuid
@@ -37,6 +49,7 @@ uuid.UUID(sys.argv[1])
 PY
 
 RESULT="$RUN_DIR/reply-$(date -u +%Y%m%dT%H%M%S)-$$.json"
-qa_container "$RESULT" "${2:-go}" --resume "$SESSION"
+REPLY="${2:-go} (Headless server run: spawn subagents in the foreground and wait for them; never end your turn while one is running. At most one browser-using agent at a time.)"
+qa_container "$RESULT" "$REPLY" --resume "$SESSION"
 printf '\nReports: %s/reports\n' "$RUN_DIR"
-qa_verdict
+qa_finish

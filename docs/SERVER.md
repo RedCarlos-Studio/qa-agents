@@ -246,6 +246,53 @@ phases running at once, not a second run starting while one is paused;
 starting another run in between is allowed but uses the same memory
 budget, so finish or clean up the paused run first on a small host.
 
+Accounts added mid-run: if the run stops because it needs an account
+(for example a test user whose password is set from an email), add it
+to /srv/qa/clients/<client>/env.test and reply "continue". qa-go
+copies the client env.test into the run's clone on every resume when
+it has changed, and prints "env.test refreshed".
+
+## Coverage ledger: what is already tested
+
+Each client keeps one ledger of tested functionality across runs:
+
+    /srv/qa/clients/<client>/coverage-ledger.md
+    /srv/qa/clients/<client>/coverage-history/   (previous versions)
+
+How it flows:
+
+1. qa-run copies the client ledger into the clone as
+   qa-reports/coverage-ledger.md and tells the lead about it.
+   The first run of a client has none.
+2. The lead reads it at intake. In full mode the checkpoint table gets
+   a ledger column, and the default selection skips modules that are
+   `covered` and whose code paths have no commits since the covered
+   commit. `failed` modules get their failed cases again, `partial`
+   modules only the cases that were not run, changed modules are
+   retested.
+3. With the verdict, the lead writes the complete updated ledger to
+   qa-reports/<date>/coverage-ledger.md: one row per module (status,
+   commit, run id, passed / failed / blocked / not run, open issues,
+   what the next run should do) and one line per executed case.
+4. After a recognized verdict (exit 0, 1 or 2), qa-go (or qa-run with
+   QA_NO_CHECKPOINT=1) saves it as the client ledger and moves the
+   previous one to coverage-history/. No verdict, no save: an
+   interrupted run never overwrites the ledger.
+
+Statuses: covered (all cases ran, no open blocker or major; the only
+status that lets the next run skip), failed, partial, not covered.
+
+Checkpoint replies that use it:
+
+    go                       # default: skips covered, unchanged modules
+    go all                   # everything, covered modules included
+    go modules auth,orders   # exactly these, covered or not
+    retest auth              # put one covered module back in
+
+To start over for a client, move coverage-ledger.md into
+coverage-history/ by hand. Do not edit rows to mark something covered:
+a module counts as covered only with its executed case lines.
+
 ## Answer the checkpoint
 
 This works the same in all three modes. qa-go prints the run's mode first.

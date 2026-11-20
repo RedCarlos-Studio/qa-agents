@@ -87,6 +87,7 @@ Every run has a run id `<YYYYMMDD-HHMM>-<short sha>`, so every result names the 
 - `qa-reports/<date>/evidence/<run>-<task-id>.md`: full evidence per task; `<run>-REG-<suite>.log` for regression runs.
 - `qa-reports/<date>/screenshots/<run>-<task-id>-<n>.png`: screenshots and GIFs, failures only.
 - `qa-reports/<date>/<run>-<layer>-state.json` and `-ledger.md`: what an agent changed on a shared environment, and every money, stock or counter change it made.
+- `qa-reports/<date>/coverage-ledger.md`: the coverage ledger, one row per module with status (covered, failed, partial, not covered), commit and the cases run. On the server it is kept per client between runs, so the next full run skips covered, unchanged modules ([details](docs/SERVER.md#coverage-ledger-what-is-already-tested)).
 - New tests land in `e2e/`, `.maestro/`, `tests/api/`. Agents never edit app code.
 
 ## Cost and speed

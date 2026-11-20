@@ -43,7 +43,7 @@ qa_container() {
   local result="$1" prompt="$2"
   shift 2
   local rc=0
-  printf '\n[%s] Starting Claude\n' "$(date -Is)" >> "$RUN_DIR/run.log"
+  printf '\n[%s] Starting Claude\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUN_DIR/run.log"
   docker run --rm --init \
     --name "$CONTAINER_NAME" \
     --cpus "$QA_CPUS" --memory "$QA_MEMORY" \
@@ -104,6 +104,22 @@ print(str(data.get('result', '')))
 if data.get('is_error') or not session:
     raise SystemExit('ERROR: Claude run failed; inspect run.log')
 PY
+}
+
+# Verdict exit code; on a recognized verdict also keep the coverage ledger for the next run.
+qa_finish() {
+  local rc=0 here
+  here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  qa_verdict || rc=$?
+  if (( rc <= 2 )); then
+    python3 "$here/qa-ledger.py" save "$RUN_DIR" "$QA_ROOT/clients/$CLIENT" \
+      || printf 'WARNING: coverage ledger not saved\n' >&2
+    if (( EUID == 0 )) && [[ -f "$QA_ROOT/clients/$CLIENT/coverage-ledger.md" ]]; then
+      chown qa:qa "$QA_ROOT/clients/$CLIENT/coverage-ledger.md"
+      chown -R qa:qa "$QA_ROOT/clients/$CLIENT/coverage-history"
+    fi
+  fi
+  return "$rc"
 }
 
 qa_verdict() {
