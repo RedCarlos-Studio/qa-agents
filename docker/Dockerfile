@@ -41,6 +41,7 @@ RUN set -eu; \
 
 COPY --chown=qa:qa agents/qa-lead.md agents/qa-runner.md agents/qa-api.md /home/qa/.claude/agents/
 COPY --chown=qa:qa agents/qa-web-server.md /home/qa/.claude/agents/qa-web.md
+COPY --chown=qa:qa agents/qa-rules.md /home/qa/.claude/qa-rules.md
 COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/qa-entrypoint
 
 ENV HOME=/home/qa
