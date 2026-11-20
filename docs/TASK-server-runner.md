@@ -1,6 +1,8 @@
 # Task: on-demand QA agent runner on the Red Carlos Linux server
 
 Part of: qa-agents (RedCarlos-Studio/qa-agents). Depends on PR #4 (v2 agents) being merged.
+
+Delivery status: Stages 1 to 4 and the scripts in Stage 3 (including `--feature`) are delivered on branch `qa-full-run`; Stage 0 server checks and the Stage 5 real run are tracked in the PR. Full-portal mode is specified in [TASK-full-portal-run.md](TASK-full-portal-run.md).
 Relative size: medium. Mostly infrastructure and scripting; agent changes are small.
 
 ## 1. Goal
@@ -20,7 +22,7 @@ Not in scope for this task: scheduled or event-triggered runs, mobile (qa-mobile
 
 ## 3. Stage 0: pre-flight
 
-- [ ] PR #4 merged into `main`.
+- [x] PR #4 contained in the consolidation branch `qa-full-run` (merge into `main` with that PR).
 - [ ] Server: Docker and Docker Compose installed, outbound HTTPS to `api.anthropic.com`, network route to at least one client staging (VPN or IP allowlist confirmed with the client).
 - [ ] Free resources on the server: 2 vCPU and 4 GB RAM per concurrent run (8 GB if two runs may overlap), 20 GB disk for images and caches. Confirm with `free -h`, `nproc`, `df -h`.
 - [ ] `claude setup-token` run on John Michael's machine; token stored on the server in `/srv/qa/secrets/claude.env` with mode 0600. Note the expiry in the team calendar; the token is valid for one year and runs fail with 401 after that.
@@ -129,8 +131,8 @@ Gate: two different clients can be run back to back without either seeing the ot
 
 - [ ] Run against the chosen client's staging on a real feature branch, with the checkpoint.
 - [ ] Compare the lead's verdict with a manual QA pass on the same branch. Record misses in both directions on the board's log; adjust agent prompts where the gap is systematic (not per case).
-- [ ] Write `docs/SERVER.md`: how to start a run, how to answer the checkpoint, where reports land, how to switch auth, how to add a client, what to do on 401 (token expired) and on a Chromium crash (shm size).
-- [ ] Add a line to README linking SERVER.md.
+- [x] Write `docs/SERVER.md`: how to start a run, how to answer the checkpoint, where reports land, how to switch auth, how to add a client, what to do on 401 (token expired) and on a Chromium crash (shm size).
+- [x] Add a line to README linking SERVER.md.
 
 Gate: a second person on the team starts and finishes a run using only SERVER.md.
 

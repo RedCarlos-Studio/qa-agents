@@ -6,6 +6,23 @@ Five Claude Code subagents that work as a small QA team: a lead on Opus that pla
 
 ## Claude Code
 
+Shared rules every agent follows: [agents/qa-rules.md](agents/qa-rules.md) (run id tied to a commit, clean sessions, regression sweep sized to reach, test data and ledger, blocked versus not run, severity scale). Agent sources live in `agents/`; `.claude/agents/` and `.claude/qa-rules.md` are symlinks to them.
+
+### Modes
+
+| Mode | You give | The lead does |
+| --- | --- | --- |
+| change | a branch or PR and a base | tests the diff and what it can reach |
+| feature | a named feature, no diff | maps the feature to code, screens and endpoints, tests current behavior |
+| full | a stage URL (server runner) | maps the whole web portal into modules, you pick modules and budget at the checkpoint, tests module by module, one verdict |
+
+### Local and server qa-web
+
+- `agents/qa-web.md` (local): explores in your real Chrome through the Claude in Chrome extension (`mcp__claude-in-chrome__*`), never signs in there, and takes every pass/fail verdict from Playwright in a fresh context signed in with `.env.test`.
+- `agents/qa-web-server.md` (server, installed in the image as `qa-web`): headless Chromium through Playwright MCP; signs in with the `.env.test` accounts per role and reports blocked only on CAPTCHA, 2FA without a test bypass, third-party SSO, or a missing or rejected account.
+
+Use only one of them in a given install; both are named `qa-web` so the lead dispatches either.
+
 ## Install
 
 1. Copy `.claude/agents/` into the project (restart Claude Code once if the folder did not exist).
@@ -24,7 +41,7 @@ Five Claude Code subagents that work as a small QA team: a lead on Opus that pla
 
 ## How a run works
 
-1. Intake, in one of two modes. Change mode: you give a PR, branch or base, the lead reads the diff and spec. Feature mode: you name functionality ("check the checkout flow on staging"), the lead finds it in the code itself (routes, components, screens, tests, flags), builds a feature map with entry points per layer, derives expected behavior from docs, specs and code, and lists what it could not settle as open questions. Either way it creates `qa-reports/<date>/board.md`.
+1. Intake, in one of three modes (full mode is described in [docs/SERVER.md](docs/SERVER.md#full-mode)). Change mode: you give a PR, branch or base, the lead reads the diff and spec. Feature mode: you name functionality ("check the checkout flow on staging"), the lead finds it in the code itself (routes, components, screens, tests, flags), builds a feature map with entry points per layer, derives expected behavior from docs, specs and code, and lists what it could not settle as open questions. Either way it creates `qa-reports/<date>/board.md`.
 2. Research and regression, in parallel: the lead asks each involved specialist what should be tested (they return proposed cases with priority, preconditions and dependencies, nothing executed yet) and has qa-runner execute the existing suites.
 3. Review: failing existing tests become P1 cases at the top of the backlog; proposed cases already covered by a passing test are dropped. The lead merges duplicates, orders by dependency (API before clients), drops cases that are already blocked, caps the scope, writes the backlog to the board.
 4. Checkpoint: the lead stops and gives you a one-screen brief: scope, environment status, backlog size by layer and priority, estimate (rounds, wall time, cost), biggest risks, and anything only you can unblock. Nothing runs until you reply. Reply `go`, `go without MOB`, or change the scope. To skip the pause, start the run with "no checkpoint".
@@ -63,9 +80,13 @@ Guaranteed routing: type `@` and pick the agent, e.g. `@qa-lead`.
 
 ## Output
 
-- `qa-reports/<date>/board.md`: scope, backlog with owners and statuses, decision log.
-- `qa-reports/<date>/summary.md`: verdict, bugs by severity, coverage, open questions, process notes.
-- `qa-reports/<date>/screenshots/`: screenshots and GIFs.
+Every run has a run id `<YYYYMMDD-HHMM>-<short sha>`, so every result names the commit it tested and reruns never overwrite each other.
+
+- `qa-reports/<date>/board.md`: run id, scope, backlog with owners and statuses, decision log (full mode: one section per module).
+- `qa-reports/<date>/summary.md`: first line GO / NO-GO / GO WITH KNOWN ISSUES, then the verdict on a named commit, bugs by severity, coverage, [Record] observations, data left behind, open questions, process notes.
+- `qa-reports/<date>/evidence/<run>-<task-id>.md`: full evidence per task; `<run>-REG-<suite>.log` for regression runs.
+- `qa-reports/<date>/screenshots/<run>-<task-id>-<n>.png`: screenshots and GIFs, failures only.
+- `qa-reports/<date>/<run>-<layer>-state.json` and `-ledger.md`: what an agent changed on a shared environment, and every money, stock or counter change it made.
 - New tests land in `e2e/`, `.maestro/`, `tests/api/`. Agents never edit app code.
 
 ## Cost and speed
@@ -101,4 +122,11 @@ Optional switches, each a one-line change:
 
 ## Server runner
 
-See [the operator guide](docs/SERVER.md) for Docker setup, checkpoint runs and reports.
+Headless runs on our Linux server in Docker, in all three modes:
+
+    ./scripts/qa-run.sh <client> <repo-url> <branch> <base-branch> [stage-url] [extra-prompt]
+    ./scripts/qa-run.sh --feature "<what to check>" <client> <repo-url> <branch> <stage-url> [extra-prompt]
+    ./scripts/qa-run.sh --full <client> <repo-url> <branch> <stage-url> [extra-prompt]
+    ./scripts/qa-go.sh <run-dir> [reply]
+
+See [the operator guide](docs/SERVER.md) for Docker setup, client accounts, checkpoint replies, full-mode budgets, interrupt and resume, and reports. `python3 scripts/qa-check-agents.py` checks agent frontmatter, rule references and the image copy list.

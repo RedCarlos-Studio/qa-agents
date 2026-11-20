@@ -5,8 +5,7 @@
 Docker image built; Chromium and Playwright MCP smoke tests passed.
 The MCP test passed with 1 CPU, 1 GiB RAM and 256 MiB shared memory.
 A real Claude plan/resume cycle and client isolation test are pending.
-The implementation is based on qa-agents-v2; PR #4 must be merged
-before final acceptance.
+Three run modes are available: change, feature and full (see Start a run).
 
 Commands below assume an authorized root shell on the host.
 Claude and browser processes inside the container run as user qa.
@@ -44,6 +43,8 @@ Do not remove an image while a paused run still needs it.
 Agent sources live in agents/. Local .claude/agents files are symlinks.
 The image includes qa-lead, qa-runner, qa-api and the server variant
 of qa-web. It excludes qa-mobile and the local Chrome variant.
+The shared rules file agents/qa-rules.md is copied to
+/home/qa/.claude/qa-rules.md; every agent reads it first.
 
 ## Authentication
 
@@ -86,6 +87,28 @@ It must contain the project's documented test environment variables:
 staging URL, test accounts and any test database configuration.
 Set owner qa:qa and mode 0600.
 
+Login requirements (most portal pages are behind a login):
+
+- Define one test account per role to be tested (for example customer,
+  manager, admin). Document the variable names in the client's README
+  or list them in a comment at the top of env.test, so the lead can
+  name a role per case.
+- Disable CAPTCHA on the stage, or allowlist the QA server's IP for it.
+- 2FA/OTP needs a test bypass. SSO through a third-party identity
+  provider cannot be automated; such logins are reported as blocked.
+- qa-web signs in only on the stage origin and never writes credentials
+  to evidence or screenshots.
+
+Optional settings in env.test that the agents read:
+
+- QA_IGNORE_ROBOTS=1 lets the full-mode crawl ignore robots.txt
+  disallow rules on the stage. Default: robots.txt is respected.
+
+If the stage is shared with other people, fill in a never-touch list
+(buttons, endpoints, settings agents must not use) in the client's
+README or tell the lead at the checkpoint. In full mode the lead asks
+for it before any write case in money or data modules.
+
 Never use production credentials or a production database.
 
 The optional network file contains exactly one Docker network name:
@@ -100,19 +123,51 @@ runtimes or services must be reported as blocked, not as passing tests.
 
 ## Start a run
 
+Three modes. All of them stop at the same operator checkpoint and
+resume with the same qa-go.sh.
+
+| Mode | What it checks | Needs |
+| --- | --- | --- |
+| change | a branch against a base branch (the diff) | branch, base |
+| feature | one named piece of functionality as it works now | description, stage URL |
+| full | the whole web portal, split into modules | stage URL |
+
 Arguments:
 
     ./scripts/qa-run.sh <client> <repo-url> <branch> <base-branch> [stage-url] [extra-prompt]
+    ./scripts/qa-run.sh --feature "<what to check>" <client> <repo-url> <branch> <stage-url> [extra-prompt]
+    ./scripts/qa-run.sh --full <client> <repo-url> <branch> <stage-url> [extra-prompt]
 
-Example for the initial low-memory experiment:
+Change mode example (initial low-memory experiment):
 
     QA_CPUS=1 QA_MEMORY=1g QA_SHM=256m \
       ./scripts/qa-run.sh example \
       git@github.com:ORG/REPO.git feature/example main \
       https://staging.example.com
 
+Feature mode example:
+
+    ./scripts/qa-run.sh --feature "checkout with a saved card" example \
+      git@github.com:ORG/REPO.git main https://staging.example.com
+
+Full mode example:
+
+    ./scripts/qa-run.sh --full example \
+      git@github.com:ORG/REPO.git main https://staging.example.com
+
 Replace all example values before running.
 The supplied stage URL must agree with env.test.
+
+Feature and full mode:
+
+- branch is the branch the stage is deployed from, usually main.
+  It is cloned for reading code; no base branch is fetched.
+- stage-url is required and must be an https:// URL without
+  credentials.
+- The feature description is one line, at most 500 characters.
+  Quote it as a single argument.
+- state.env records QA_MODE (and QA_FEATURE for feature mode) so the
+  operator can see what a run directory was for.
 
 Default resource limits are 2 CPU, 4g memory and 1g shared memory.
 QA_MEMORY_SWAP defaults to QA_MEMORY, disabling container swap.
@@ -129,8 +184,71 @@ Existing regression suites may run during planning.
 To skip the operator checkpoint, set QA_NO_CHECKPOINT=1 before qa-run.
 To select API billing, set QA_AUTH=api before qa-run.
 
+## Full mode
+
+The plan phase builds a module map of the portal from the code (routes,
+navigation, role guards, feature flags) and from a read-only crawl of
+the stage, then stops at the checkpoint. No module is researched or
+tested before go.
+
+The crawl is GET only, same origin, depth 3, at most 200 pages, no
+form submission except sign-in, and respects robots.txt unless env.test
+sets QA_IGNORE_ROBOTS=1.
+
+The full-mode checkpoint shows a module table (module, risk, size,
+layers, proposed case budget, included yes/no), the global budget and
+the default selection: every module with money, auth or data risk plus
+the main flows of the rest. Replies:
+
+    ./scripts/qa-go.sh <run-dir>                          # go: default selection
+    ./scripts/qa-go.sh <run-dir> "go all"                 # every module
+    ./scripts/qa-go.sh <run-dir> "go modules auth,checkout"
+    ./scripts/qa-go.sh <run-dir> "drop admin"             # default minus one module
+    ./scripts/qa-go.sh <run-dir> "budget 40"              # change the case ceiling, then go
+
+After go, modules run one at a time in risk order: research, review,
+execution. A module ends when its backlog is empty, blocked or out of
+budget. A shared blocker (stage down, login broken) stops the run and
+comes back to the operator instead of being retried per module.
+
+Budgets:
+
+- per module: S 4 cases, M 8, L 12;
+- global ceiling: QA_FULL_MAX_CASES (default 60) cases and
+  QA_FULL_MAX_ROUNDS (default 8) rounds per specialist per module.
+  Set them before qa-run, or override in the checkpoint reply;
+- at the ceiling the lead stops dispatching, marks the rest
+  "not run (budget)" and writes the verdict.
+
+summary.md has the verdict on the first line, then a table per module
+(passed, failed, blocked, not run, top issue), blockers and majors,
+and a "not covered" list: modules not selected, pages found live but
+not in the map, cases deferred by budget.
+
+The board in full mode has a module table at the top and one section
+per module. Task ids carry a module prefix, for example CHK-WEB-3.
+
+## Interrupt and resume
+
+Full runs are long. To interrupt a running phase:
+
+    docker ps --filter name=qa-
+    docker stop <container-name>
+
+Resume with the same run directory:
+
+    ./scripts/qa-go.sh <run-dir> "continue"
+
+The board (reports/board.md, or repo/qa-reports/<date>/board.md) is
+the state: the lead reads it and carries on from the first task that
+is not passed, failed, blocked or dropped. The lock prevents two
+phases running at once, not a second run starting while one is paused;
+starting another run in between is allowed but uses the same memory
+budget, so finish or clean up the paused run first on a small host.
+
 ## Answer the checkpoint
 
+This works the same in all three modes. qa-go prints the run's mode first.
 Use the exact run directory printed by qa-run:
 
     ./scripts/qa-go.sh /srv/qa/runs/example/<run-directory>
