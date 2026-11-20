@@ -43,7 +43,7 @@ qa_container() {
   local result="$1" prompt="$2"
   shift 2
   local rc=0
-  printf '\n[%s] Starting Claude\n' "$(date -Is)" >> "$RUN_DIR/run.log"
+  printf '\n[%s] Starting Claude\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUN_DIR/run.log"
   docker run --rm --init \
     --name "$CONTAINER_NAME" \
     --cpus "$QA_CPUS" --memory "$QA_MEMORY" \
