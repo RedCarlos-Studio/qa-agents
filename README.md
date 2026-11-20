@@ -1,6 +1,10 @@
 # QA agents: how to use
 
 Five Claude Code subagents that work as a small QA team: a lead on Opus that plans, reviews and dispatches, three specialists on Sonnet that research and execute one task at a time, and a Haiku runner that executes the existing suites first so the specialists spend their rounds on new behavior.
+- **Codex desktop app and CLI:** [installation, prerequisites and examples](docs/codex.md). Native definitions are in `.codex/agents/`.
+- **Claude Code:** follow the original instructions below; `.claude/agents/` is preserved.
+
+## Claude Code
 
 ## Install
 
