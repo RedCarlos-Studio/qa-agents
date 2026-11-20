@@ -106,6 +106,22 @@ if data.get('is_error') or not session:
 PY
 }
 
+# Verdict exit code; on a recognized verdict also keep the coverage ledger for the next run.
+qa_finish() {
+  local rc=0 here
+  here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  qa_verdict || rc=$?
+  if (( rc <= 2 )); then
+    python3 "$here/qa-ledger.py" save "$RUN_DIR" "$QA_ROOT/clients/$CLIENT" \
+      || printf 'WARNING: coverage ledger not saved\n' >&2
+    if (( EUID == 0 )) && [[ -f "$QA_ROOT/clients/$CLIENT/coverage-ledger.md" ]]; then
+      chown qa:qa "$QA_ROOT/clients/$CLIENT/coverage-ledger.md"
+      chown -R qa:qa "$QA_ROOT/clients/$CLIENT/coverage-history"
+    fi
+  fi
+  return "$rc"
+}
+
 qa_verdict() {
   python3 - "$RUN_DIR/reports/summary.md" <<'PY'
 import re, sys

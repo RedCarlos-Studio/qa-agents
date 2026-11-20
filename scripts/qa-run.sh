@@ -129,6 +129,15 @@ fi
 install -m 600 "$ENV_TEST" "$RUN_DIR/repo/.env.test"
 mkdir -p "$RUN_DIR/repo/qa-reports/$REPORT_DATE/evidence" "$RUN_DIR/repo/qa-reports/$REPORT_DATE/screenshots"
 
+# Coverage ledger from earlier runs: the lead reads it and skips what is covered and unchanged.
+LEDGER="$QA_ROOT/clients/$CLIENT/coverage-ledger.md"
+HAVE_LEDGER=0
+if [[ -e "$LEDGER" || -L "$LEDGER" ]]; then
+  [[ -f "$LEDGER" && ! -L "$LEDGER" ]] || qa_die 'Client coverage-ledger.md is not a regular file'
+  install -m 600 "$LEDGER" "$RUN_DIR/repo/qa-reports/coverage-ledger.md"
+  HAVE_LEDGER=1
+fi
+
 STATE_VARS=(CLIENT QA_IMAGE QA_AUTH QA_NETWORK QA_CPUS QA_MEMORY QA_MEMORY_SWAP QA_SHM REPORT_DATE CONTAINER_NAME QA_MODE)
 [[ "$QA_MODE" != feature ]] || STATE_VARS+=(QA_FEATURE)
 [[ "$QA_MODE" != full ]] || STATE_VARS+=(QA_FULL_MAX_CASES QA_FULL_MAX_ROUNDS)
@@ -154,6 +163,12 @@ case "$QA_MODE" in
     PROMPT="Full mode. Run a full QA pass of the web portal on $STAGE: build the portal module map from code and from the live stage, propose modules and budgets at the checkpoint, then execute module by module. There is no diff. Budgets: max $QA_FULL_MAX_CASES cases, max $QA_FULL_MAX_ROUNDS rounds per specialist per module. $EXTRA"
     ;;
 esac
+if (( HAVE_LEDGER )); then
+  PROMPT+=" Previous coverage ledger: qa-reports/coverage-ledger.md; skip what it shows as covered and unchanged."
+else
+  PROMPT+=" No coverage ledger yet for this client."
+fi
+PROMPT+=" Write the updated coverage ledger to qa-reports/$REPORT_DATE/coverage-ledger.md together with the verdict."
 PROMPT+=" This is a Linux server run: web and API only; mobile is out of scope. Use /work/repo/.env.test for test credentials; never print secrets. Use qa-reports/$REPORT_DATE/ for all reports. The first line of summary.md must be exactly GO, NO-GO, or GO WITH KNOWN ISSUES."
 
 if [[ "${QA_NO_CHECKPOINT:-0}" == 1 ]]; then
@@ -164,7 +179,7 @@ qa_container "$RUN_DIR/plan.json" "$PROMPT"
 printf '\nReports: %s/reports\n' "$RUN_DIR"
 
 if [[ "${QA_NO_CHECKPOINT:-0}" == 1 ]]; then
-  qa_verdict
+  qa_finish
 else
   printf 'Continue: %q %q\n' "$HERE/qa-go.sh" "$RUN_DIR"
 fi

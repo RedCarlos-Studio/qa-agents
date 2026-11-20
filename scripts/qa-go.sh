@@ -39,4 +39,4 @@ PY
 RESULT="$RUN_DIR/reply-$(date -u +%Y%m%dT%H%M%S)-$$.json"
 qa_container "$RESULT" "${2:-go}" --resume "$SESSION"
 printf '\nReports: %s/reports\n' "$RUN_DIR"
-qa_verdict
+qa_finish
