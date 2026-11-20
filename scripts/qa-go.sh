@@ -49,6 +49,7 @@ uuid.UUID(sys.argv[1])
 PY
 
 RESULT="$RUN_DIR/reply-$(date -u +%Y%m%dT%H%M%S)-$$.json"
-qa_container "$RESULT" "${2:-go}" --resume "$SESSION"
+REPLY="${2:-go} (Headless server run: spawn subagents in the foreground and wait for them; never end your turn while one is running. At most one browser-using agent at a time.)"
+qa_container "$RESULT" "$REPLY" --resume "$SESSION"
 printf '\nReports: %s/reports\n' "$RUN_DIR"
 qa_finish

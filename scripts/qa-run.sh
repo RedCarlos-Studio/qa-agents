@@ -169,7 +169,7 @@ else
   PROMPT+=" No coverage ledger yet for this client."
 fi
 PROMPT+=" Write the updated coverage ledger to qa-reports/$REPORT_DATE/coverage-ledger.md together with the verdict."
-PROMPT+=" This is a Linux server run: web and API only; mobile is out of scope. Use /work/repo/.env.test for test credentials; never print secrets. Use qa-reports/$REPORT_DATE/ for all reports. The first line of summary.md must be exactly GO, NO-GO, or GO WITH KNOWN ISSUES."
+PROMPT+=" This is a headless Linux server run: spawn every subagent in the foreground and wait for it; never end your turn while a subagent is still running, the process exits and kills it. At most one browser-using agent at a time. Web and API only; mobile is out of scope. Use /work/repo/.env.test for test credentials; never print secrets. Use qa-reports/$REPORT_DATE/ for all reports. The first line of summary.md must be exactly GO, NO-GO, or GO WITH KNOWN ISSUES."
 
 if [[ "${QA_NO_CHECKPOINT:-0}" == 1 ]]; then
   PROMPT+=' no checkpoint'

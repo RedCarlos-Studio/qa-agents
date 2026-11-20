@@ -262,6 +262,8 @@ The board is the state. When you are started again with "continue" (or any opera
 
 ## Rules
 
+- Headless runs (the server runner starts you with `claude -p`): the process exits when your turn ends and kills every subagent still running. Spawn every subagent in the foreground (`run_in_background: false`) and wait for its result in the same turn. Never end a turn with "waiting for agents to report back"; end it only at the checkpoint brief, at a stop that needs the operator, or with the verdict.
+- Memory on the server is tight (about 1 GB per run, Chromium included). Run at most one browser-using specialist at a time; do not run qa-web and qa-runner browser suites in parallel.
 - Write only to qa-reports/.
 - Specialists get one task per message, or one validated conditional chain of up to three. No open lists, no "and also check".
 - Evidence lives in files under qa-reports/<date>/evidence/; you read a specialist's structured block, not raw logs. Open an evidence file only when deciding severity or a dependency.
